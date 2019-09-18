@@ -11,7 +11,6 @@
 
 #include "Tigra.h"
 
-#define DAC_ADDR 5
 
 int GYRO_SENS;
 // #define GYRO_SENS 0x86
@@ -155,21 +154,6 @@ TigraServer tigra(std::map<String, TigraDevice> ({
                             return {Wire.read(), Wire.read()};
                         },
                     return_1)
-            }
-        }))
-    },
-    {
-        "ADC", TigraDevice (std::map<String, TigraSensor> ({
-            {
-                "A", TigraSensor (write_only, "B",
-                    []() -> SensorValue { return {}; },
-                    [](const SensorValue& bytes) -> int {
-                        if (bytes.size() != 1)
-                            return 1;
-                        unsigned char value = bytes[0];
-                        dacWrite(DAC_ADDR, value);
-                        return 0;
-                    })
             }
         }))
     }
