@@ -1,47 +1,24 @@
 #ifndef TIGRA_H
 #define TIGRA_H
 
-#include <Arduino.h>
+#include<Arduino.h>
 
 
-// В этом файле содержатся несколько классов, отвечающие ресурсам,
-// которыми располагает микроконтроллер. Всё устройство - это TigraServer
-// (изначально предполагалось, что в коде такой TigraServer конструируется,
-// а потом запускается одним методом и самостоятельно обрабатывает запросы
-// (т.е. server.on(...) в void setup() {...} быть не должно), но мне
-// не удалось сделать наследование TigraServer : WebServer). TigraServer
-// в качестве полей содержит TigraDevice (пример девайса: гироскоп). Они,
-// в свою очередь, содержат в себе TigraSensor - это уже собственно что-то,
-// с чего можно снимать данные, или писать на них данные (в случае с
-// гироскопом это угловое ускорение по трём осям, т.е. три read-only сенсора).
-// По задумке автора, такая структура должна отвечать реальной иерархии
-// датчиков и потому быть удобной.
-
-
-typedef std::vector<char> SensorValue;
-typedef std::function<SensorValue()> reader_func;
-typedef std::function<int(SensorValue)> writer_func;
-enum rw_mode {
-    read_write,
-    read_only,
-    write_only
-};
-
-
-// Класс, отвечающий за некоторый сенсор
 class TigraSensor {
 private:
-    const reader_func _get_value;
-    const writer_func _set_value;
-    const rw_mode _mode;
+    const std::function<std::vector<char>()> _get_value;
+    // std::vector<char> (*const _get_value)();
+    const std::function<int(const std::vector<char> &)> _set_value;
+    // int (*const _set_value)(const std::vector<char> &);
+    const String _mode;
     const String _type;
 
 public:
     TigraSensor():
         _get_value(nullptr),
         _set_value(nullptr),
-        _mode(),
-        _type() {}
+        _mode(NULL),
+        _type(NULL) {}
 
     TigraSensor(const TigraSensor &sensor):
         _get_value(sensor._get_value),
@@ -49,40 +26,35 @@ public:
         _mode(sensor._mode),
         _type(sensor._type) {}
 
-    TigraSensor(rw_mode mode, String type,
-                const reader_func get_value,
-                const writer_func set_value):
+    TigraSensor(String mode, String type,
+                const std::function<std::vector<char> ()> get_value,
+                const std::function<int(const std::vector<char> &)> set_value):
         _mode(mode),
         _type(type),
         _get_value(get_value),
         _set_value(set_value) {}
 
-    const rw_mode mode() {
+    const String mode() {
         return _mode;
     }
     const String type() {
         return _type;
     }
 
-    SensorValue get() const {
+    std::vector<char> get() const {
         return _get_value();
     }
 
-    int set(const SensorValue &vec) const {
+    int set(const std::vector<char> &vec) const {
         return _set_value(vec);
     }
 
     JSONVar options() {
         JSONVar result;
         result["type"] = _type;
-        if (_mode == read_write)
-            result["mode"] = "read_write";
-        else if (_mode == read_only)
-            result["mode"] = "read_only";
-        else if (_mode == write_only)
-            result["mode"] = "write_only";
+        result["mode"] = _mode;
         auto value = get();
-        for (unsigned int i = 0; i < value.size(); i++)
+        for (int i = 0; i < value.size(); i++)
             result["value"][i] = value[i];
         return result;
     }

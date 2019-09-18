@@ -14,6 +14,7 @@
 #define DAC_ADDR 5
 
 int GYRO_SENS;
+// #define GYRO_SENS 0x86
 #define Gyro_X0_Reg 0x1D
 #define Gyro_X1_Reg 0x1E
 #define Gyro_Y0_Reg 0x1F
@@ -31,23 +32,25 @@ int GYRO_SENS;
 #define Acc_Z0_Reg 0x36
 #define Acc_Z1_Reg 0x37
 
-// #define ssid "net-name"
-// #define password "password"
+#define ssid "default"
+#define password "set-ttl-65"
 
 const IPAddress local_ip(192, 168, 13, 37);
 const IPAddress gateway(192, 168, 0, 1);
 const IPAddress subnet(255, 255, 0, 0);
 
 
-reader_func wire_reader(char sensor, std::vector<char> registers) {
-    return [sensor, registers]() -> SensorValue {
+std::function<std::vector<char>()> wire_reader(char sensor, const std::vector <char> &registers) {
+    // Serial.print("(1) registers.size() = ");
+    // Serial.println(registers.size());
+    return [&sensor, &registers]() -> std::vector <char> {
         Wire.beginTransmission(sensor);
         for (auto reg: registers) {
             Wire.write(reg);
         }
         Wire.endTransmission();
         Wire.requestFrom(sensor, registers.size());
-        std::vector<char> result(registers.size());
+        std::vector <char> result(registers.size());
         for (char i = 0; i < registers.size(); i++) {
             result[i] = Wire.read();
         }
@@ -56,21 +59,21 @@ reader_func wire_reader(char sensor, std::vector<char> registers) {
 }
 
 
-reader_func axis_reader(char sens, char reg_x0, char reg_y0) {
-    return [sens, reg_x0, reg_y0]() -> SensorValue {
-        Wire.beginTransmission(sens);
-        Wire.write(reg_x0);
-        Wire.write(reg_y0);
-        Wire.endTransmission();
-        Wire.requestFrom(sens, 2);
-        return { Wire.read(), Wire.read() };
-    };
-}
-
-
 int return_1(const std::vector<char> &val) {
     return 1;
 }
+
+/*
+TigraServer tigra_server;
+tigra_server.add_device("Gyro", TigraDevice());
+tigra_server.device("Gyro").add_sensor("X", TigraSensor(
+    "read-only", "word",
+    wire_reader(GYRO_SENS,
+        std::vector <char> ({Gyro_X0_Reg, Gyro_X1_Reg})),
+    []() -> int {return 1;}
+));
+tigra_server.add_device("Servo", TigraDevice());
+*/
 
 WebServer server(80);
 
@@ -78,26 +81,39 @@ TigraServer tigra(std::map<String, TigraDevice> ({
     {
         "Gyro", TigraDevice (std::map<String, TigraSensor> ({
             {
-                "X", TigraSensor (read_only, "h",
-                    axis_reader(GYRO_SENS, Gyro_X0_Reg, Gyro_X1_Reg),
+                "X", TigraSensor ("read-only", "word",
+                    []() -> std::vector<char> {
+                            Wire.beginTransmission(GYRO_SENS);
+                            Wire.write(Gyro_X0_Reg);
+                            Wire.write(Gyro_X1_Reg);
+                            Wire.endTransmission();
+                            Wire.requestFrom(GYRO_SENS, 2);
+                            return {Wire.read(), Wire.read()};
+                        },
                     return_1)
             },
             {
-                "Y", TigraSensor (read_only, "h",
-                    /*[]() -> SensorValue {
+                "Y", TigraSensor ("read-only", "word",
+                    []() -> std::vector<char> {
                             Wire.beginTransmission(GYRO_SENS);
                             Wire.write(Gyro_Y0_Reg);
                             Wire.write(Gyro_Y1_Reg);
                             Wire.endTransmission();
                             Wire.requestFrom(GYRO_SENS, 2);
                             return {Wire.read(), Wire.read()};
-                        },*/
-                    axis_reader(GYRO_SENS, Gyro_Y0_Reg, Gyro_Y1_Reg),
+                        },
                     return_1)
             },
             {
-                "Z", TigraSensor (read_only, "h",
-                    axis_reader(GYRO_SENS, Gyro_Z0_Reg, Gyro_Z1_Reg),
+                "Z", TigraSensor ("read-only", "word",
+                    []() -> std::vector<char> {
+                            Wire.beginTransmission(GYRO_SENS);
+                            Wire.write(Gyro_Z0_Reg);
+                            Wire.write(Gyro_Z1_Reg);
+                            Wire.endTransmission();
+                            Wire.requestFrom(GYRO_SENS, 2);
+                            return {Wire.read(), Wire.read()};
+                        },
                     return_1)
             }
         }))
@@ -105,18 +121,39 @@ TigraServer tigra(std::map<String, TigraDevice> ({
     {
         "Acc", TigraDevice (std::map<String, TigraSensor> ({
             {
-                "X", TigraSensor (read_only, "h",
-                    axis_reader(ACC_SENS, Acc_X0_Reg, Acc_X1_Reg),
+                "X", TigraSensor ("read-only", "word",
+                    []() -> std::vector<char> {
+                            Wire.beginTransmission(ACC_SENS);
+                            Wire.write(Acc_X0_Reg);
+                            Wire.write(Acc_X1_Reg);
+                            Wire.endTransmission();
+                            Wire.requestFrom(ACC_SENS, 2);
+                            return {Wire.read(), Wire.read()};
+                        },
                     return_1)
             },
             {
-                "Y", TigraSensor (read_only, "h",
-                    axis_reader(ACC_SENS, Acc_Y0_Reg, Acc_Y1_Reg),
+                "Y", TigraSensor ("read-only", "word",
+                    []() -> std::vector<char> {
+                            Wire.beginTransmission(ACC_SENS);
+                            Wire.write(Acc_Y0_Reg);
+                            Wire.write(Acc_Y1_Reg);
+                            Wire.endTransmission();
+                            Wire.requestFrom(ACC_SENS, 2);
+                            return {Wire.read(), Wire.read()};
+                        },
                     return_1)
             },
             {
-                "Z", TigraSensor (read_only, "h",
-                    axis_reader(ACC_SENS, Acc_Z0_Reg, Acc_Z1_Reg),
+                "Z", TigraSensor ("read-only", "word",
+                    []() -> std::vector<char> {
+                            Wire.beginTransmission(ACC_SENS);
+                            Wire.write(Acc_Z0_Reg);
+                            Wire.write(Acc_Z1_Reg);
+                            Wire.endTransmission();
+                            Wire.requestFrom(ACC_SENS, 2);
+                            return {Wire.read(), Wire.read()};
+                        },
                     return_1)
             }
         }))
@@ -140,56 +177,33 @@ TigraServer tigra(std::map<String, TigraDevice> ({
 
 
 void handleRoot() {
-    char temp[555];
+    char temp[625];
     int sec = millis() / 1000;
     int min = sec / 60;
     int hr = min / 60;
 
-    snprintf(temp, 555, "\
-<html>\
-    <head>\
-    <title>ESP32 Server</title>\
-    <style>\
-        body {\
-        background-color: #cccccc;\
-        font-family: Arial, Helvetica, Sans-Serif;\
-        Color: #000088;\
-        }\
-    </style>\
-    </head>\
-    <body>\
-    <h1>Hello from ESP32!</h1>\
-    <p>Uptime: %02d:%02d:%02d</p>\
-    - GET or POST <a href='/devices'>here</a> for list of devices;<br>\
-    - GET or POST url like `/device/&ltdevicename&gt` for devicename's options;<br>\
-    - GET or POST url like `/device/&ltdevicename&gt/&ltsensorname&gt` for sensorname's options;<br>\
-    </body>\
-</html>\
-",
-    hr, min % 60, sec % 60);
+    snprintf(temp, 625,
+    "<html>\
+      <head>\
+        <meta http-equiv='refresh' content='5'/>\
+        <title>ESP32 Server</title>\
+        <style>\
+          body {\
+            background-color: #cccccc;\
+            font-family: Arial, Helvetica, Sans-Serif;\
+            Color: #000088;\
+          }\
+        </style>\
+      </head>\
+      <body>\
+        <h1>Hello from ESP32!</h1>\
+        <p>Uptime: %02d:%02d:%02d</p>\
+        - GET or POST <a href='/devices'>here</a> for list of devices;<br>\
+        - GET or POST url like `/device/&ltdevicename&gt` for devicename's options;<br>\
+        - GET or POST url like `/device/&ltdevicename&gt/&ltsensorname&gt` for sensorname's options;<br>\
+      </body>\
+    </html>", hr, min % 60, sec % 60);
     server.send(200, "text/html", temp);
-}
-
-
-char hexToByte(char c) {
-    if ('0' <= c && c <= '9')
-        return c - '0';
-    if ('a' <= c && c <= 'z')
-        return c - 'a';
-    if ('A' <= c && c <= 'Z')
-        return c - 'A';
-}
-
-SensorValue hexToSensorValue(const std::string& hexed) {
-    // Order of encoding data on client side:
-    // data -> vector of bytes (how sensor wants to receive them)
-    //     -> each byte (256) encoded into 2 [0-9a-zA-Z] symbols (hexed)
-    std::vector<char> res(hexed.size() / 2);
-    for (unsigned int i = 0; i < hexed.size() / 2; i++) {
-        res[i] = hexToByte(hexed[2 * i]) * 16
-               + hexToByte(hexed[2 * i + 1]);
-    }
-    return res;
 }
 
 
@@ -203,26 +217,60 @@ void setup() {
     Wire.beginTransmission(ACC_SENS);
     Wire.write(Acc_Pow_Reg);
     Wire.write(8);
+    Serial.print("Transmission result: ");
+    Serial.println(Wire.endTransmission());
 
-    for (int i = ACC_SENS; i < 256; i++) {
+    bool on_acc = false;
+    for (int i = 0; i < 256; i++) {
         Wire.beginTransmission(i);
-        if (!Wire.endTransmission()) {
+        uint8_t res = Wire.endTransmission();
+        if (!res && on_acc) {
             GYRO_SENS = i;
             break;
         }
+        if (i == ACC_SENS)
+            on_acc = true;
+        /*if (res == 0) {
+            Serial.print("Success with i = ");
+            Serial.println(i);
+        }*/
     }
 
     Wire.beginTransmission(GYRO_SENS);
     Wire.write(0x3E);
     Wire.write(0x00);
 
+    // Wire.write(0x15);
+    // Wire.write(0x07);
+
     Wire.write(0x16);
-    Wire.write(0x18);
+    Wire.write(0x18); // 0x1E
+
+    // Wire.write(0x17);
+    // Wire.write(0x00);
+    Serial.print("Transmission result: ");
+    Serial.println(Wire.endTransmission());
+
+    // WiFi.mode(WIFI_STA);
+    // WiFi.begin(ssid, password);
+    // WiFi.config(IP_ADDR, GATEWAY_IP, SUBNET, DNS_IP);
+    // WiFi.begin(ssid);
+    Serial.println("");
 
     WiFi.softAPConfig(local_ip, gateway, subnet);
     WiFi.softAP("esp32", "hse-only!");
     Serial.print("My IP is: ");
     Serial.println(WiFi.softAPIP());
+    /*
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.print("Connected to ");
+    Serial.println(ssid);
+    Serial.print("IP address: ");
+    Serial.println(WiFi.localIP());
+    */
 
 
     if (MDNS.begin("esp32")) {
@@ -254,19 +302,6 @@ void setup() {
         for (int i = 0; i < val.size(); i++) {
             res[i] = val[i];
         }
-        server.send(
-            200, "application/json",
-            JSON.stringify(res)
-        );
-    });
-    server.on("/set_value/{}/{}/{}", [&tigra]() {
-        String device_name = server.pathArg(0);
-        String sensor_name = server.pathArg(1);
-        String hex_value = server.pathArg(2);
-        int res =
-            tigra.device(device_name)
-                .sensor(sensor_name)
-                .set(hexToSensorValue(hex_value.c_str()));
         server.send(
             200, "application/json",
             JSON.stringify(res)
