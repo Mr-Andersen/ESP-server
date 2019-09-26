@@ -15,6 +15,7 @@
 
 
 int GYRO_SENS;
+// #define GYRO_SENS 0x86
 #define Gyro_X0_Reg 0x1D
 #define Gyro_X1_Reg 0x1E
 #define Gyro_Y0_Reg 0x1F
@@ -32,23 +33,25 @@ int GYRO_SENS;
 #define Acc_Z0_Reg 0x36
 #define Acc_Z1_Reg 0x37
 
-// #define ssid "net-name"
-// #define password "password"
+#define ssid "default"
+#define password "set-ttl-65"
 
 static const IPAddress local_ip(192, 168, 13, 37);
 static const IPAddress gateway(192, 168, 0, 1);
 static const IPAddress subnet(255, 255, 0, 0);
 
 
-reader_func wire_reader(char sensor, std::vector<char> registers) {
-    return [sensor, registers]() -> SensorValue {
+std::function<std::vector<char>()> wire_reader(char sensor, const std::vector <char> &registers) {
+    // Serial.print("(1) registers.size() = ");
+    // Serial.println(registers.size());
+    return [&sensor, &registers]() -> std::vector <char> {
         Wire.beginTransmission(sensor);
         for (auto reg: registers) {
             Wire.write(reg);
         }
         Wire.endTransmission();
         Wire.requestFrom(sensor, registers.size());
-        std::vector<char> result(registers.size());
+        std::vector <char> result(registers.size());
         for (char i = 0; i < registers.size(); i++) {
             result[i] = Wire.read();
         }
@@ -73,6 +76,18 @@ int return_1(const std::vector<char> &val) {
     return 1;
 }
 
+/*
+TigraServer tigra_server;
+tigra_server.add_device("Gyro", TigraDevice());
+tigra_server.device("Gyro").add_sensor("X", TigraSensor(
+    "read-only", "word",
+    wire_reader(GYRO_SENS,
+        std::vector <char> ({Gyro_X0_Reg, Gyro_X1_Reg})),
+    []() -> int {return 1;}
+));
+tigra_server.add_device("Servo", TigraDevice());
+*/
+
 WebServer server(80);
 
 TigraServer tigra(std::map<String, TigraDevice> ({
@@ -92,6 +107,7 @@ TigraServer tigra(std::map<String, TigraDevice> ({
                             Wire.endTransmission();
                             Wire.requestFrom(GYRO_SENS, 2);
                             return {Wire.read(), Wire.read()};
+                        },
                         },*/
                     axis_reader(GYRO_SENS, Gyro_Y0_Reg, Gyro_Y1_Reg),
                     return_1)
@@ -143,34 +159,32 @@ TigraServer tigra(std::map<String, TigraDevice> ({
 
 
 void handleRoot() {
-    Serial.println("'/' requested");
-    char temp[1024];
+    char temp[625];
     int sec = millis() / 1000;
     int min = sec / 60;
     int hr = min / 60;
 
-    snprintf(temp, 1024, "\
-<html>\
-    <head>\
-    <title>ESP32 Server</title>\
-    <style>\
-        body {\
-        background-color: #cccccc;\
-        font-family: Arial, Helvetica, Sans-Serif;\
-        Color: #000088;\
-        }\
-    </style>\
-    </head>\
-    <body>\
-    <h1>Hello from ESP32!</h1>\
-    <p>Uptime: %02d:%02d:%02d</p>\
-    - GET or POST <a href='/devices'>here</a> for list of devices;<br>\
-    - GET or POST url like `/device/&ltdevicename&gt` for devicename's options;<br>\
-    - GET or POST url like `/device/&ltdevicename&gt/&ltsensorname&gt` for sensorname's options;<br>\
-    </body>\
-</html>\
-",
-    hr, min % 60, sec % 60);
+    snprintf(temp, 625,
+    "<html>\
+      <head>\
+        <meta http-equiv='refresh' content='5'/>\
+        <title>ESP32 Server</title>\
+        <style>\
+          body {\
+            background-color: #cccccc;\
+            font-family: Arial, Helvetica, Sans-Serif;\
+            Color: #000088;\
+          }\
+        </style>\
+      </head>\
+      <body>\
+        <h1>Hello from ESP32!</h1>\
+        <p>Uptime: %02d:%02d:%02d</p>\
+        - GET or POST <a href='/devices'>here</a> for list of devices;<br>\
+        - GET or POST url like `/device/&ltdevicename&gt` for devicename's options;<br>\
+        - GET or POST url like `/device/&ltdevicename&gt/&ltsensorname&gt` for sensorname's options;<br>\
+      </body>\
+    </html>", hr, min % 60, sec % 60);
     server.send(200, "text/html", temp);
 }
 
