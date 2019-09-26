@@ -5,6 +5,8 @@
 #include <ESPmDNS.h>
 #include <Wire.h>
 
+#include <driver/dac.h>
+
 #include <Arduino_JSON.h>
 #include "map"
 #include "vector"
@@ -33,9 +35,9 @@ int GYRO_SENS;
 // #define ssid "net-name"
 // #define password "password"
 
-const IPAddress local_ip(192, 168, 13, 37);
-const IPAddress gateway(192, 168, 0, 1);
-const IPAddress subnet(255, 255, 0, 0);
+static const IPAddress local_ip(192, 168, 13, 37);
+static const IPAddress gateway(192, 168, 0, 1);
+static const IPAddress subnet(255, 255, 0, 0);
 
 
 reader_func wire_reader(char sensor, std::vector<char> registers) {
@@ -119,17 +121,35 @@ TigraServer tigra(std::map<String, TigraDevice> ({
                     return_1)
             }
         }))
+    },
+    {
+        "Blink", TigraDevice (std::map<String, TigraSensor> ({
+            {
+                "A", TigraSensor (write_only, "B",
+                    []() -> SensorValue {
+                        return SensorValue();
+                    },
+                    [](const SensorValue& bts) -> int {
+                        if (bts.size() != 1)
+                            return 1;
+                        char val = bts[0];
+                        dac_output_voltage(DAC_CHANNEL_1, val);
+                        return 0;
+                    })
+            }
+        }))
     }
 }));
 
 
 void handleRoot() {
-    char temp[555];
+    Serial.println("'/' requested");
+    char temp[1024];
     int sec = millis() / 1000;
     int min = sec / 60;
     int hr = min / 60;
 
-    snprintf(temp, 555, "\
+    snprintf(temp, 1024, "\
 <html>\
     <head>\
     <title>ESP32 Server</title>\
@@ -159,9 +179,9 @@ char hexToByte(char c) {
     if ('0' <= c && c <= '9')
         return c - '0';
     if ('a' <= c && c <= 'z')
-        return c - 'a';
+        return c - 'a' + 10;
     if ('A' <= c && c <= 'Z')
-        return c - 'A';
+        return c - 'A' + 10;
 }
 
 SensorValue hexToSensorValue(const std::string& hexed) {
@@ -178,6 +198,8 @@ SensorValue hexToSensorValue(const std::string& hexed) {
 
 
 void setup() {
+    dac_output_enable(DAC_CHANNEL_1);
+
     Serial.begin(115200);
     delay(100);
     Wire.begin(4, 0, 9600);
@@ -209,9 +231,9 @@ void setup() {
     Serial.println(WiFi.softAPIP());
 
 
-    if (MDNS.begin("esp32")) {
+    /*if (MDNS.begin("esp32")) {
         Serial.println("MDNS responder started");
-    }
+    }*/
 
     server.on("/", handleRoot);
     server.on("/devices", [&tigra]() {
@@ -233,7 +255,7 @@ void setup() {
         );
     });
     server.on("/get_value/{}/{}", [&tigra]() {
-        std::vector <char> val = tigra.device(server.pathArg(0)).sensor(server.pathArg(1)).get();
+        std::vector<char> val = tigra.device(server.pathArg(0)).sensor(server.pathArg(1)).get();
         JSONVar res;
         for (int i = 0; i < val.size(); i++) {
             res[i] = val[i];
@@ -247,10 +269,19 @@ void setup() {
         String device_name = server.pathArg(0);
         String sensor_name = server.pathArg(1);
         String hex_value = server.pathArg(2);
+        SensorValue value = hexToSensorValue(hex_value.c_str());
+        Serial.print("value (");
+        Serial.print(value.size());
+        Serial.print("): [");
+        for (auto c : value) {
+            Serial.print((int) c);
+            Serial.print(", ");
+        }
+        Serial.println("];");
         int res =
             tigra.device(device_name)
                 .sensor(sensor_name)
-                .set(hexToSensorValue(hex_value.c_str()));
+                .set(value);
         server.send(
             200, "application/json",
             JSON.stringify(res)
