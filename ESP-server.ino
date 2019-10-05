@@ -91,7 +91,7 @@ tigra_server.add_device("Servo", TigraDevice());
 WebServer server(80);
 
 TigraServer tigra(std::map<String, TigraDevice> ({
-    {
+    /*{
         "Gyro", TigraDevice (std::map<String, TigraSensor> ({
             {
                 "X", TigraSensor (read_only, "h",
@@ -100,15 +100,6 @@ TigraServer tigra(std::map<String, TigraDevice> ({
             },
             {
                 "Y", TigraSensor (read_only, "h",
-                    /*[]() -> SensorValue {
-                            Wire.beginTransmission(GYRO_SENS);
-                            Wire.write(Gyro_Y0_Reg);
-                            Wire.write(Gyro_Y1_Reg);
-                            Wire.endTransmission();
-                            Wire.requestFrom(GYRO_SENS, 2);
-                            return {Wire.read(), Wire.read()};
-                        },
-                        },*/
                     axis_reader(GYRO_SENS, Gyro_Y0_Reg, Gyro_Y1_Reg),
                     return_1)
             },
@@ -137,7 +128,7 @@ TigraServer tigra(std::map<String, TigraDevice> ({
                     return_1)
             }
         }))
-    },
+    },*/
     {
         "Blink", TigraDevice (std::map<String, TigraSensor> ({
             {
@@ -216,11 +207,11 @@ void setup() {
 
     Serial.begin(115200);
     delay(100);
-    Wire.begin(4, 0, 9600);
+    // Wire.begin(4, 0, 9600);
 
     Serial.println("");
 
-    Wire.beginTransmission(ACC_SENS);
+   /* Wire.beginTransmission(ACC_SENS);
     Wire.write(Acc_Pow_Reg);
     Wire.write(8);
 
@@ -237,10 +228,12 @@ void setup() {
     Wire.write(0x00);
 
     Wire.write(0x16);
-    Wire.write(0x18);
+    Wire.write(0x18);*/
 
-    WiFi.softAPConfig(local_ip, gateway, subnet);
+    WiFi.mode(WIFI_AP);
     WiFi.softAP("esp32", "hse-only!");
+    delay(100);
+    WiFi.softAPConfig(local_ip, gateway, subnet);
     Serial.print("My IP is: ");
     Serial.println(WiFi.softAPIP());
 
