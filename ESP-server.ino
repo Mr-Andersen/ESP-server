@@ -6,6 +6,11 @@
 #include <Wire.h>
 
 #include <driver/dac.h>
+#include <driver/ledc.h>
+#include <esp_err.h>
+/*#include <stdio.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>*/
 
 #include <Arduino_JSON.h>
 #include "map"
@@ -76,21 +81,9 @@ int return_1(const std::vector<char> &val) {
     return 1;
 }
 
-/*
-TigraServer tigra_server;
-tigra_server.add_device("Gyro", TigraDevice());
-tigra_server.device("Gyro").add_sensor("X", TigraSensor(
-    "read-only", "word",
-    wire_reader(GYRO_SENS,
-        std::vector <char> ({Gyro_X0_Reg, Gyro_X1_Reg})),
-    []() -> int {return 1;}
-));
-tigra_server.add_device("Servo", TigraDevice());
-*/
-
 WebServer server(80);
 
-TigraServer tigra(std::map<String, TigraDevice> ({
+static TigraServer tigra(std::map<String, TigraDevice> ({
     /*{
         "Gyro", TigraDevice (std::map<String, TigraSensor> ({
             {
@@ -139,9 +132,11 @@ TigraServer tigra(std::map<String, TigraDevice> ({
                     [](const SensorValue& bts) -> int {
                         if (bts.size() != 1)
                             return 1;
-                        char val = bts[0];
-                        dac_output_voltage(DAC_CHANNEL_1, val);
-                        return 0;
+                        uint32_t val = bts[0];
+                        // dac_output_voltage(DAC_CHANNEL_1, val);
+                        return ledc_set_duty_and_update(
+                            LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, val, 0
+                        );
                     })
             }
         }))
@@ -203,15 +198,47 @@ SensorValue hexToSensorValue(const std::string& hexed) {
 
 
 void setup() {
-    dac_output_enable(DAC_CHANNEL_1);
-
     Serial.begin(115200);
     delay(100);
+
+    WiFi.mode(WIFI_AP);
+    WiFi.softAP("esp32", "hse-only!");
+    delay(100);
+    WiFi.softAPConfig(local_ip, gateway, subnet);
+    Serial.print("My IP is: ");
+    Serial.println(WiFi.softAPIP());
+
+    // dac_output_enable(DAC_CHANNEL_1);
+    ledc_timer_config_t ledc_timer = {
+        LEDC_LOW_SPEED_MODE,
+        LEDC_TIMER_8_BIT,
+        LEDC_TIMER_0,
+        20,
+    };
+    Serial.print("ledc_timer_config() -> ");
+    Serial.print(ledc_timer_config(&ledc_timer));
+    Serial.println();
+
+    ledc_channel_config_t ledc_channel = {
+        33,
+        LEDC_LOW_SPEED_MODE,
+        LEDC_CHANNEL_0,
+        LEDC_INTR_DISABLE,
+        LEDC_TIMER_0,
+        127,
+        0,
+    };
+    Serial.print("ledc_channel_config() -> ");
+    Serial.print(ledc_channel_config(&ledc_channel));
+    Serial.println();
+
+    ledc_fade_func_install(0);
+
     // Wire.begin(4, 0, 9600);
 
     Serial.println("");
 
-   /* Wire.beginTransmission(ACC_SENS);
+    /*Wire.beginTransmission(ACC_SENS);
     Wire.write(Acc_Pow_Reg);
     Wire.write(8);
 
@@ -229,13 +256,6 @@ void setup() {
 
     Wire.write(0x16);
     Wire.write(0x18);*/
-
-    WiFi.mode(WIFI_AP);
-    WiFi.softAP("esp32", "hse-only!");
-    delay(100);
-    WiFi.softAPConfig(local_ip, gateway, subnet);
-    Serial.print("My IP is: ");
-    Serial.println(WiFi.softAPIP());
 
 
     /*if (MDNS.begin("esp32")) {
