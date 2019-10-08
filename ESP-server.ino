@@ -135,7 +135,7 @@ static TigraServer tigra(std::map<String, TigraDevice> ({
                         uint32_t val = bts[0];
                         // dac_output_voltage(DAC_CHANNEL_1, val);
                         return ledc_set_duty_and_update(
-                            LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, val, 0
+                            LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, val, 0
                         );
                     })
             }
@@ -205,23 +205,25 @@ void setup() {
     WiFi.softAP("esp32", "hse-only!");
     delay(100);
     WiFi.softAPConfig(local_ip, gateway, subnet);
+    delay(100);
     Serial.print("My IP is: ");
     Serial.println(WiFi.softAPIP());
 
     // dac_output_enable(DAC_CHANNEL_1);
     ledc_timer_config_t ledc_timer = {
-        LEDC_LOW_SPEED_MODE,
+        LEDC_HIGH_SPEED_MODE,
         LEDC_TIMER_8_BIT,
         LEDC_TIMER_0,
         20,
     };
     Serial.print("ledc_timer_config() -> ");
     Serial.print(ledc_timer_config(&ledc_timer));
-    Serial.println();
+    delay(100);
+    Serial.println("");
 
     ledc_channel_config_t ledc_channel = {
         33,
-        LEDC_LOW_SPEED_MODE,
+        LEDC_HIGH_SPEED_MODE,
         LEDC_CHANNEL_0,
         LEDC_INTR_DISABLE,
         LEDC_TIMER_0,
@@ -230,9 +232,11 @@ void setup() {
     };
     Serial.print("ledc_channel_config() -> ");
     Serial.print(ledc_channel_config(&ledc_channel));
+    delay(100);
     Serial.println();
 
     ledc_fade_func_install(0);
+    delay(100);
 
     // Wire.begin(4, 0, 9600);
 
