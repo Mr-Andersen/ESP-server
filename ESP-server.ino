@@ -130,9 +130,10 @@ static TigraServer tigra(std::map<String, TigraDevice> ({
                         return SensorValue();
                     },
                     [](const SensorValue& bts) -> int {
-                        if (bts.size() != 1)
-                            return 1;
-                        uint32_t val = bts[0];
+                        uint32_t val = 0;
+                        size_t size = bts.size();
+                        for (unsigned int i = 0; i < size; i++)
+                            val = val * 256 + bts[i];
                         // dac_output_voltage(DAC_CHANNEL_1, val);
                         return ledc_set_duty_and_update(
                             LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, val, 0
@@ -212,9 +213,9 @@ void setup() {
     // dac_output_enable(DAC_CHANNEL_1);
     ledc_timer_config_t ledc_timer = {
         LEDC_HIGH_SPEED_MODE,
-        LEDC_TIMER_8_BIT,
+        LEDC_TIMER_20_BIT,
         LEDC_TIMER_0,
-        20,
+        45,
     };
     Serial.print("ledc_timer_config() -> ");
     Serial.print(ledc_timer_config(&ledc_timer));
