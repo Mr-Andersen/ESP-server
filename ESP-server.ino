@@ -210,7 +210,6 @@ void setup() {
     Serial.print("My IP is: ");
     Serial.println(WiFi.softAPIP());
 
-    // dac_output_enable(DAC_CHANNEL_1);
     ledc_timer_config_t ledc_timer = {
         LEDC_HIGH_SPEED_MODE,
         LEDC_TIMER_20_BIT,
@@ -228,7 +227,34 @@ void setup() {
         LEDC_CHANNEL_0,
         LEDC_INTR_DISABLE,
         LEDC_TIMER_0,
-        127,
+        0xff00,
+        0,
+    };
+    Serial.print("ledc_channel_config() -> ");
+    Serial.print(ledc_channel_config(&ledc_channel));
+    delay(100);
+    Serial.println();
+
+    /*
+    // DEBUG vvvvv
+    ledc_timer = {
+        LEDC_HIGH_SPEED_MODE,
+        LEDC_TIMER_20_BIT,
+        LEDC_TIMER_1,
+        50,
+    };
+    Serial.print("ledc_timer_config() -> ");
+    Serial.print(ledc_timer_config(&ledc_timer));
+    delay(100);
+    Serial.println("");
+
+    ledc_channel = {
+        4,
+        LEDC_HIGH_SPEED_MODE,
+        LEDC_CHANNEL_1,
+        LEDC_INTR_DISABLE,
+        LEDC_TIMER_1,
+        0xff00,
         0,
     };
     Serial.print("ledc_channel_config() -> ");
@@ -239,7 +265,34 @@ void setup() {
     ledc_fade_func_install(0);
     delay(100);
 
-    // Wire.begin(4, 0, 9600);
+    ledc_timer = {
+        LEDC_HIGH_SPEED_MODE,
+        LEDC_TIMER_20_BIT,
+        LEDC_TIMER_2,
+        25,
+    };
+    Serial.print("ledc_timer_config() -> ");
+    Serial.print(ledc_timer_config(&ledc_timer));
+    delay(100);
+    Serial.println("");
+
+    ledc_channel = {
+        15,
+        LEDC_HIGH_SPEED_MODE,
+        LEDC_CHANNEL_2,
+        LEDC_INTR_DISABLE,
+        LEDC_TIMER_2,
+        0xff00,
+        0,
+    };
+    Serial.print("ledc_channel_config() -> ");
+    Serial.print(ledc_channel_config(&ledc_channel));
+    delay(100);
+    Serial.println();
+    // DEBUG ^^^^^^
+    */
+
+    // Wire.begin(4, 15, 9600);
 
     Serial.println("");
 
@@ -247,7 +300,7 @@ void setup() {
     Wire.write(Acc_Pow_Reg);
     Wire.write(8);
 
-    for (int i = ACC_SENS; i < 256; i++) {
+    for (unsigned int i = ACC_SENS; i < 256; i++) {
         Wire.beginTransmission(i);
         if (!Wire.endTransmission()) {
             GYRO_SENS = i;
@@ -289,7 +342,7 @@ void setup() {
     server.on("/get_value/{}/{}", [&tigra]() {
         std::vector<char> val = tigra.device(server.pathArg(0)).sensor(server.pathArg(1)).get();
         JSONVar res;
-        for (int i = 0; i < val.size(); i++) {
+        for (unsigned int i = 0; i < val.size(); i++) {
             res[i] = val[i];
         }
         server.send(
